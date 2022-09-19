@@ -337,14 +337,14 @@ void loop()
     deserializeJson(temperatureData, getPlantResponse());
     JsonObject temperatureObj = temperatureData.as<JsonObject>();
 
-    sensor2_warning = temperatureObj[String("data")][1][String("set_point")][String("warning")];
-    sensor2_danger = temperatureObj[String("data")][1][String("set_point")][String("danger")];
+    sensor2_warning = temperatureObj[String("data")][0][String("set_point")][String("warning2")];
+    sensor2_danger = temperatureObj[String("data")][0][String("set_point")][String("danger2")];
 
     deserializeJson(currentData, getPlantResponse());
     JsonObject currentObj = currentData.as<JsonObject>();
 
-    sensor3_warning = currentObj[String("data")][2][String("set_point")][String("warning")];
-    sensor3_danger = currentObj[String("data")][2][String("set_point")][String("danger")];
+    sensor3_warning = currentObj[String("data")][0][String("set_point")][String("warning3")];
+    sensor3_danger = currentObj[String("data")][0][String("set_point")][String("danger3")];
   }
   adxlReader();
   mlxReader();
