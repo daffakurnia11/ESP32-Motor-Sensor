@@ -10,15 +10,15 @@
 #include <HTTPClient.h>
 
 String plant = "Motor1";
-int delayLoop = 4000;
+int delayLoop = 8000;
 
 // Variable Declaration
 float temperature = 0, ambient = 0;
 float volt = 0, ampere = 0, power = 0;
 float x = 0, y = 0, z = 0;
-int response, sensor1_id = 0, sensor2_id = 0, sensor3_id = 0;
-float sensor1_warning = 0, sensor1_danger = 0;
+int response;
 float sensor2_warning = 0, sensor2_danger = 0;
+float sensor3_warning = 0, sensor3_danger = 0;
 
 // PZEM Serial Declarations
 #define RXD2 16
@@ -33,8 +33,8 @@ float sensor2_warning = 0, sensor2_danger = 0;
 #define LED2_GREEN 12
 
 // SSID Declaration
-const char *ssid = "Deltakilo";
-const char *pass = "1sempak8";
+const char *ssid = "KP-Unilever";
+const char *pass = "smartfren";
 
 // API Declaration
 String baseUrl = "http://128.199.87.189/api";
@@ -76,6 +76,12 @@ void ledBlinking()
   digitalWrite(LED2_YELLOW, HIGH);
   digitalWrite(LED2_RED, HIGH);
   delay(500);
+  digitalWrite(LED1_GREEN, LOW);
+  digitalWrite(LED1_YELLOW, LOW);
+  digitalWrite(LED1_RED, LOW);
+  digitalWrite(LED2_GREEN, LOW);
+  digitalWrite(LED2_YELLOW, LOW);
+  digitalWrite(LED2_RED, LOW);
 }
 
 void mlxSetup()
@@ -157,61 +163,28 @@ void wifiConnect()
   Serial.println("\nWifi Connected!");
 }
 
-String getPlantResponse(String method)
+String getPlantResponse()
 {
-  http.begin(baseUrl + "/motor_sensor/" + plant + "/" + method);
+  http.begin(baseUrl + "/" + plant + "/setpoint");
   http.GET();
   String response = http.getString();
 
   return response;
 }
 
-int postTemperature(int id, float T, float A)
+int postData(float T, float A, float x, float y, float z, float volt, float ampere, float power)
 {
-  http.begin(baseUrl + "/motor_sensor/temperature");
+  http.begin(baseUrl + "/" + plant);
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<200> buff;
   String jsonParams;
 
-  buff["sensor_id"] = id;
   buff["temperature"] = T;
   buff["ambient"] = A;
-  serializeJson(buff, jsonParams);
-
-  int code = http.POST(jsonParams);
-
-  return code;
-}
-
-int postVibration(int id, float x, float y, float z)
-{
-  http.begin(baseUrl + "/motor_sensor/vibration");
-  http.addHeader("Content-Type", "application/json");
-
-  StaticJsonDocument<200> buff;
-  String jsonParams;
-
-  buff["sensor_id"] = id;
   buff["x_axis"] = x;
   buff["y_axis"] = y;
   buff["z_axis"] = z;
-  serializeJson(buff, jsonParams);
-
-  int code = http.POST(jsonParams);
-
-  return code;
-}
-
-int postCurrent(int id, float volt, float ampere, float power)
-{
-  http.begin(baseUrl + "/motor_sensor/current");
-  http.addHeader("Content-Type", "application/json");
-
-  StaticJsonDocument<200> buff;
-  String jsonParams;
-
-  buff["sensor_id"] = id;
   buff["volt"] = volt;
   buff["ampere"] = ampere;
   buff["power"] = power;
@@ -222,154 +195,51 @@ int postCurrent(int id, float volt, float ampere, float power)
   return code;
 }
 
-void mlxReader(int temp_id, float temp_warning, float temp_danger)
+void mlxReader()
 {
   temperature = mlx.readObjectTempC();
   ambient = mlx.readAmbientTempC();
 
-  if (temp_id != 0 || temp_warning != 0 || temp_danger != 0)
-  {
-    if (sensor1_id != temp_id || sensor1_warning != temp_warning || sensor1_danger != temp_danger)
-    {
-      sensor1_id = temp_id;
-      sensor1_warning = temp_warning;
-      sensor1_danger = temp_danger;
-    }
+  Serial.println("--------- MLX Reader ---------");
+  Serial.print("Warning : ");
+  Serial.print(sensor2_warning);
+  Serial.print("  Danger : ");
+  Serial.println(sensor2_danger);
 
-    Serial.println("--------- MLX Reader ---------");
-
-    Serial.print("Sensor ID : ");
-    Serial.print(sensor1_id);
-    Serial.print("  Warning : ");
-    Serial.print(sensor1_warning);
-    Serial.print("  Danger : ");
-    Serial.println(sensor1_danger);
-
-    Serial.print("Temperature : ");
-    Serial.print(temperature);
-    Serial.print("  Ambient : ");
-    Serial.println(ambient);
-
-    response = postTemperature(sensor1_id, temperature, ambient);
-    Serial.print("Code : ");
-    Serial.println(response);
-
-    if (response > 0)
-    {
-      Serial.print("Sensor Result : ");
-      if (temperature < sensor1_warning)
-      {
-        Serial.println("Safe");
-        digitalWrite(LED1_GREEN, HIGH);
-        digitalWrite(LED1_YELLOW, LOW);
-        digitalWrite(LED1_RED, LOW);
-      }
-      else if (temperature >= sensor1_danger)
-      {
-        Serial.println("DANGER!!");
-        digitalWrite(LED1_GREEN, LOW);
-        digitalWrite(LED1_YELLOW, LOW);
-        digitalWrite(LED1_RED, HIGH);
-      }
-      else if (temperature >= sensor1_warning && temperature < sensor1_danger)
-      {
-        Serial.println("WARNING");
-        digitalWrite(LED1_GREEN, LOW);
-        digitalWrite(LED1_YELLOW, HIGH);
-        digitalWrite(LED1_RED, LOW);
-      }
-      else
-      {
-        Serial.println("NO RESULT");
-        digitalWrite(LED1_GREEN, LOW);
-        digitalWrite(LED1_YELLOW, LOW);
-        digitalWrite(LED1_RED, HIGH);
-      }
-    }
-    else
-    {
-      ledBlinking();
-    }
-    Serial.println();
-  }
+  Serial.print("Temperature : ");
+  Serial.print(temperature);
+  Serial.print("  Ambient : ");
+  Serial.println(ambient);
 }
 
-void pzemReader(int temp_id, float temp_warning, float temp_danger)
+void pzemReader()
 {
   volt = pzem_r.voltage();
   ampere = pzem_r.current();
   power = pzem_r.power();
 
-  if (temp_id != 0 || temp_warning != 0 || temp_danger != 0)
+  Serial.println("--------- PZEM Reader ---------");
+  Serial.print("Warning : ");
+  Serial.print(sensor3_warning);
+  Serial.print("  Danger : ");
+  Serial.println(sensor3_danger);
+
+  Serial.print("Volt : ");
+  Serial.print(volt);
+  Serial.print("  Ampere : ");
+  Serial.print(ampere);
+  Serial.print("  Power : ");
+  Serial.println(power);
+
+  if (isnan(volt) || isnan(ampere))
   {
-    if (sensor2_id != temp_id || sensor2_warning != temp_warning || sensor2_danger != temp_danger)
-    {
-      sensor2_id = temp_id;
-      sensor2_warning = temp_warning;
-      sensor2_danger = temp_danger;
-    }
-
-    Serial.println("--------- PZEM Reader ---------");
-
-    Serial.print("Sensor ID : ");
-    Serial.print(sensor2_id);
-    Serial.print("  Warning : ");
-    Serial.print(sensor2_warning);
-    Serial.print("  Danger : ");
-    Serial.println(sensor2_danger);
-
-    Serial.print("Volt : ");
-    Serial.print(volt);
-    Serial.print("  Ampere : ");
-    Serial.print(ampere);
-    Serial.print("  Power : ");
-    Serial.println(power);
-
-    response = postCurrent(sensor2_id, volt, ampere, power);
-    Serial.print("Code : ");
-    Serial.println(response);
-
-    if (response > 0)
-    {
-      Serial.print("Sensor Result : ");
-      if (ampere < sensor2_warning)
-      {
-        Serial.println("Safe");
-        digitalWrite(LED2_GREEN, HIGH);
-        digitalWrite(LED2_YELLOW, LOW);
-        digitalWrite(LED2_RED, LOW);
-      }
-      else if (ampere >= sensor2_danger)
-      {
-        Serial.println("DANGER!!");
-        digitalWrite(LED2_GREEN, LOW);
-        digitalWrite(LED2_YELLOW, LOW);
-        digitalWrite(LED2_RED, HIGH);
-      }
-      else if (ampere >= sensor2_warning && ampere < sensor2_danger)
-      {
-        Serial.println("WARNING");
-        digitalWrite(LED2_GREEN, LOW);
-        digitalWrite(LED2_YELLOW, HIGH);
-        digitalWrite(LED2_RED, LOW);
-      }
-      else
-      {
-        Serial.println("NO RESULT");
-        digitalWrite(LED2_GREEN, LOW);
-        digitalWrite(LED2_YELLOW, LOW);
-        digitalWrite(LED2_RED, HIGH);
-      }
-    }
-    else
-    {
-      ledBlinking();
-    }
-    Serial.println();
+    digitalWrite(LED2_RED, HIGH);
+    digitalWrite(LED2_YELLOW, LOW);
+    digitalWrite(LED2_GREEN, LOW);
   }
 }
 
-void adxlReader(int temp_id)
+void adxlReader()
 {
   sensors_event_t event;
   accel.getEvent(&event);
@@ -378,29 +248,64 @@ void adxlReader(int temp_id)
   y = event.acceleration.y;
   z = event.acceleration.z;
 
-  if (temp_id != 0)
+  Serial.println("--------- ADXL Reader ---------");
+  Serial.print("X : ");
+  Serial.print(x);
+  Serial.print("  Y : ");
+  Serial.print(y);
+  Serial.print("  Z : ");
+  Serial.println(z);
+}
+
+void mlxChecker()
+{
+  Serial.print("MLX Result : ");
+  if (temperature < sensor2_warning)
   {
-    if (sensor3_id != temp_id)
-    {
-      sensor3_id = temp_id;
-    }
+    Serial.println("Safe");
+    digitalWrite(LED1_GREEN, HIGH);
+    digitalWrite(LED1_YELLOW, LOW);
+    digitalWrite(LED1_RED, LOW);
+  }
+  else if (temperature >= sensor2_danger)
+  {
+    Serial.println("DANGER!!");
+    digitalWrite(LED1_GREEN, LOW);
+    digitalWrite(LED1_YELLOW, LOW);
+    digitalWrite(LED1_RED, HIGH);
+  }
+  else if (temperature >= sensor2_warning && temperature < sensor2_danger)
+  {
+    Serial.println("WARNING");
+    digitalWrite(LED1_GREEN, LOW);
+    digitalWrite(LED1_YELLOW, HIGH);
+    digitalWrite(LED1_RED, LOW);
+  }
+}
 
-    Serial.println("--------- ADXL Reader ---------");
-
-    Serial.print("Sensor ID : ");
-    Serial.println(sensor3_id);
-
-    Serial.print("X : ");
-    Serial.print(x);
-    Serial.print("  Y : ");
-    Serial.print(y);
-    Serial.print("  Z : ");
-    Serial.println(z);
-
-    response = postVibration(sensor3_id, x, y, z);
-    Serial.print("Code : ");
-    Serial.println(response);
-    Serial.println();
+void pzemChecker()
+{
+  Serial.print("PZEM Result : ");
+  if (ampere < sensor3_warning)
+  {
+    Serial.println("Safe");
+    digitalWrite(LED2_GREEN, HIGH);
+    digitalWrite(LED2_YELLOW, LOW);
+    digitalWrite(LED2_RED, LOW);
+  }
+  else if (ampere >= sensor3_danger)
+  {
+    Serial.println("DANGER!!");
+    digitalWrite(LED2_GREEN, LOW);
+    digitalWrite(LED2_YELLOW, LOW);
+    digitalWrite(LED2_RED, HIGH);
+  }
+  else if (ampere >= sensor3_warning && ampere < sensor3_danger)
+  {
+    Serial.println("WARNING");
+    digitalWrite(LED2_GREEN, LOW);
+    digitalWrite(LED2_YELLOW, HIGH);
+    digitalWrite(LED2_RED, LOW);
   }
 }
 
@@ -424,32 +329,42 @@ void loop()
   StaticJsonDocument<1024> currentData;
   StaticJsonDocument<1024> vibrationData;
 
-  if (getPlantResponse("temperature") && getPlantResponse("current") && getPlantResponse("vibration"))
+  if (getPlantResponse())
   {
-    deserializeJson(temperatureData, getPlantResponse("temperature"));
-    JsonObject temperatureObj = temperatureData.as<JsonObject>();
-
-    temp_id = temperatureObj[String("data")][0][String("id")];
-    temp_warning = temperatureObj[String("data")][0][String("set_point")][String("warning")];
-    temp_danger = temperatureObj[String("data")][0][String("set_point")][String("danger")];
-
-    mlxReader(temp_id, temp_warning, temp_danger);
-
-    deserializeJson(currentData, getPlantResponse("current"));
-    JsonObject currentObj = currentData.as<JsonObject>();
-
-    temp_id = currentObj[String("data")][0][String("id")];
-    temp_warning = currentObj[String("data")][0][String("set_point")][String("warning")];
-    temp_danger = currentObj[String("data")][0][String("set_point")][String("danger")];
-
-    pzemReader(temp_id, temp_warning, temp_danger);
-
-    deserializeJson(vibrationData, getPlantResponse("vibration"));
+    deserializeJson(vibrationData, getPlantResponse());
     JsonObject vibrationObj = vibrationData.as<JsonObject>();
 
-    temp_id = vibrationObj[String("data")][0][String("id")];
+    deserializeJson(temperatureData, getPlantResponse());
+    JsonObject temperatureObj = temperatureData.as<JsonObject>();
 
-    adxlReader(temp_id);
-    delay(delayLoop);
+    sensor2_warning = temperatureObj[String("data")][1][String("set_point")][String("warning")];
+    sensor2_danger = temperatureObj[String("data")][1][String("set_point")][String("danger")];
+
+    deserializeJson(currentData, getPlantResponse());
+    JsonObject currentObj = currentData.as<JsonObject>();
+
+    sensor3_warning = currentObj[String("data")][2][String("set_point")][String("warning")];
+    sensor3_danger = currentObj[String("data")][2][String("set_point")][String("danger")];
   }
+  adxlReader();
+  mlxReader();
+  pzemReader();
+
+  response = postData(temperature, ambient, x, y, z, volt, ampere, power);
+  Serial.print("Code : ");
+  Serial.println(response);
+  Serial.println();
+
+  if (response == 201)
+  {
+    mlxChecker();
+    pzemChecker();
+  }
+  else
+  {
+    Serial.println("NO RESULT");
+    ledBlinking();
+  }
+
+  delay(delayLoop);
 }
