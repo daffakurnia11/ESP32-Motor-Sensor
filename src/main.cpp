@@ -38,6 +38,7 @@ const char *pass = "smartfren";
 
 // API Declaration
 String baseUrl = "http://128.199.87.189/api";
+// String baseUrl = "http://10.124.3.73/unilever-project/public/api";
 HTTPClient http;
 WiFiClient wifi;
 
@@ -231,7 +232,7 @@ void pzemReader()
   Serial.print("  Power : ");
   Serial.println(power);
 
-  if (isnan(volt) || isnan(ampere))
+  if (isnan(volt) || isnan(ampere) || isnan(power))
   {
     digitalWrite(LED2_RED, HIGH);
     digitalWrite(LED2_YELLOW, LOW);
